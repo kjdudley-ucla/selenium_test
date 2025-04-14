@@ -5,7 +5,6 @@ A comprehensive test automation framework using Python and Selenium WebDriver to
 ## Project Structure
 
 - `base_test.py` - Base test class with common setup and teardown routines
-- `oncore_performance_test.py` - Original OnCore performance test implementation
 - `oncore_performance_test_general.py` - Enhanced OnCore performance test with user prompts
 - `selenium_utils.py` - Utility functions for Selenium interactions
 - `page_objects/` - Directory containing Page Object Model classes
