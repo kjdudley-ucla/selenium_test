@@ -3,6 +3,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import csv
+import os
 from datetime import datetime
 
 
@@ -37,11 +38,12 @@ class OncorePage:
     SPECIFICATIONS_LINK = (By.LINK_TEXT, "Specifications")
     PHYSICAL_EXAM_LINK = (By.LINK_TEXT, "Physical Exam")
     
-    def __init__(self, driver, base_url="https://crmsdev.mednet.ucla.edu"):
+    def __init__(self, driver, base_url="https://crmsdev.mednet.ucla.edu", iteration=1):
         self.driver = driver
         self.base_url = base_url
         self.wait = WebDriverWait(self.driver, 10)
         self.performance_data = []
+        self.iteration = iteration
         
     def navigate_to(self, endpoint):
         """Navigate to a specific URL endpoint"""
@@ -82,11 +84,12 @@ class OncorePage:
         self.performance_data.append({
             'timestamp': timestamp,
             'page': page_name,
-            'load_time_ms': load_time
+            'load_time_ms': load_time,
+            'iteration': self.iteration
         })
         
         # Print the result for immediate feedback
-        print(f"{page_name}: {load_time} ms")
+        print(f"Iteration {self.iteration} - {page_name}: {load_time} ms")
         
         # Add pause after measuring to let the browser catch up
         self.wait_between_actions()
@@ -99,11 +102,18 @@ class OncorePage:
             print("No performance data to save.")
             return
             
-        with open(filename, 'w', newline='') as csvfile:
-            fieldnames = ['timestamp', 'page', 'load_time_ms']
+        # Check if the file already exists
+        file_exists = os.path.isfile(filename)
+        
+        # Open in append mode if file exists, otherwise in write mode
+        with open(filename, 'a' if file_exists else 'w', newline='') as csvfile:
+            fieldnames = ['timestamp', 'page', 'load_time_ms', 'iteration']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             
-            writer.writeheader()
+            # Only write the header if we're creating a new file
+            if not file_exists:
+                writer.writeheader()
+                
             for data in self.performance_data:
                 writer.writerow(data)
                 

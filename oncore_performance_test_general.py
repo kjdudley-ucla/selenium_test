@@ -20,11 +20,22 @@ class OncorePerformanceTestGeneral(BaseTest):
     subject_mrn = None
     arm_name = None
     protocol_id = None
-    
     @classmethod
     def setUpClass(cls):
         """Setup that runs once before all tests"""
         super().setUpClass()
+        # Prompt for the number of iterations
+        while True:
+            try:
+                cls.iterations = int(input("Enter the number of times to repeat each test: "))
+                if cls.iterations > 0:
+                    break
+                else:
+                    print("Please enter a positive number.")
+            except ValueError:
+                print("Please enter a valid number.")
+        print(f"Tests will run {cls.iterations} time(s)")
+        
         # Prompt for the testing environment URL
         cls.base_url = input("Enter the OnCore environment URL (e.g., https://crmsdev.mednet.ucla.edu): ")
         if not cls.base_url.startswith("http"):
@@ -51,7 +62,10 @@ class OncorePerformanceTestGeneral(BaseTest):
         # Prompt for arm name
         cls.arm_name = input("Enter the arm name (e.g., BLD): ")
         print(f"Using arm: {cls.arm_name}")
-
+        
+        # Initialize current iteration
+        cls.current_iteration = 1    
+        
     def test_protocol_performance(self):
         """Test the performance of the protocol in OnCore"""
         # Use credentials stored in setUpClass
@@ -59,9 +73,12 @@ class OncorePerformanceTestGeneral(BaseTest):
         protocol_no = self.__class__.protocol_no
         subject_mrn = self.__class__.subject_mrn
         protocol_id = self.__class__.protocol_id
+        current_iteration = self.__class__.current_iteration
         
-        # Initialize the OnCore page object
-        oncore_page = OncorePage(self.driver)
+        # Initialize the OnCore page object with the current iteration number
+        oncore_page = OncorePage(self.driver, self.base_url, current_iteration)
+        # Store oncore_page as an instance variable to ensure iteration is tracked
+        self.oncore_page = oncore_page
         
         # Navigate to the login page
         print("Loading login page...")
@@ -743,9 +760,8 @@ class OncorePerformanceTestGeneral(BaseTest):
         """Test the performance of Admin functions in OnCore"""
         # Use credentials stored in setUpClass
         username, password = self.__class__.username, self.__class__.password
-        
-        # Initialize the OnCore page object
-        oncore_page = OncorePage(self.driver)
+          # Initialize the OnCore page object with the current iteration
+        oncore_page = OncorePage(self.driver, self.base_url, self.__class__.current_iteration)
           # Navigate to the login page
         print("Loading login page...")
         oncore_page.navigate_to(self.base_url)
@@ -782,4 +798,67 @@ class OncorePerformanceTestGeneral(BaseTest):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # If running this module as a script, bypass unittest.main() and handle iterations manually
+    test_class = OncorePerformanceTestGeneral
+    test_class.setUpClass()
+    try:
+        for iteration in range(1, test_class.iterations + 1):
+            print(f"\n\n======= Starting Iteration {iteration} of {test_class.iterations} =======\n")
+            
+            # Create a test instance
+            test_instance = test_class("test_protocol_performance")
+            test_class.current_iteration = iteration
+            
+            # Set up the test environment
+            test_instance.setUp()
+            
+            try:
+                # Create the OnCore page with the current iteration number
+                test_instance.oncore_page = OncorePage(test_instance.driver, test_instance.base_url, iteration)
+                
+                # Run the test
+                test_instance.test_protocol_performance()
+                print(f"\n✓ Iteration {iteration} completed successfully")
+            except Exception as e:
+                print(f"\n✗ Iteration {iteration} failed: {str(e)}")
+            finally:
+                # Clean up after the test
+                test_instance.tearDown()
+                
+            # Add a separator between iterations
+            print(f"\n======= End of Iteration {iteration} =======\n")
+            
+            # Optionally add a pause between iterations
+            if iteration < test_class.iterations:
+                print(f"Waiting 10 seconds before starting the next iteration...")
+                time.sleep(10)
+                  # Also run the admin performance test for each iteration
+        for iteration in range(1, test_class.iterations + 1):
+            print(f"\n\n======= Running Admin Performance Test (Iteration {iteration}) =======\n")
+            admin_test_instance = test_class("test_admin_performance")
+            test_class.current_iteration = iteration
+            admin_test_instance.setUp()
+            
+            try:
+                # Create the OnCore page with the current iteration number
+                admin_test_instance.oncore_page = OncorePage(admin_test_instance.driver, admin_test_instance.base_url, iteration)
+                
+                # Run the admin test
+                admin_test_instance.test_admin_performance()
+                print(f"\n✓ Admin test iteration {iteration} completed successfully")
+            except Exception as e:
+                print(f"\n✗ Admin test iteration {iteration} failed: {str(e)}")
+            finally:
+                # Clean up after the test
+                admin_test_instance.tearDown()
+                
+            # Add a pause between iterations if not the last one
+            if iteration < test_class.iterations:
+                print(f"Waiting 5 seconds before next admin test iteration...")
+                time.sleep(5)
+    except KeyboardInterrupt:
+        print("\nTest execution interrupted by user.")
+    except Exception as e:
+        print(f"\nAn error occurred during test execution: {str(e)}")
+    finally:
+        print("\nTest execution complete.")
